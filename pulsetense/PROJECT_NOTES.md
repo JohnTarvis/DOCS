@@ -25,6 +25,7 @@ Last updated: 2026-09-06
 - Local username/password registration now writes `password_hash` to match the live `users` schema instead of the broken old `password` column expectation.
 - Gallery and carousel modal views now show the existing thumbnail stretched to the modal frame immediately while the larger image loads, replacing the old spinner-only wait state.
 - The top banner now uses a darker cinematic gradient and an animated logo treatment with soft red light rays behind the emblem.
+- The admin Test Page is now repurposed as a schema comparison surface that fetches both `/api/db` and `/api/db?schema=gallery_v2`, samples random gallery images, and times preview plus full-image loading side by side.
 - The live Postgres database now also contains a separate `gallery_v2` schema for model experiments while the running app remains on the existing `public` schema.
 - `gallery_v2` keeps normalized gallery metadata tables and adds a first-class `images` catalog table that does not exist in the current live schema.
 - The initial `gallery_v2` seed copied the current relational data and canonicalized one duplicate normalized tag pair: `old-school` and `old school` now map to one v2 tag record.
@@ -60,10 +61,12 @@ Last updated: 2026-09-06
 - `gallery_v2` creation was validated in the live database: 30 `subjects`, 32 `sets`, 61 canonical `tags`, 99 `subject_tags`, 10 `set_tags`, 2 `users`, and an empty `images` table ready for backfill.
 - The updated `/api/db` route was smoke-tested locally against a stubbed DB layer and then against the live database with `DATABASE_URL` set for the local process.
 - The live-db smoke test returned `200` for `/db?compare=1` and `200` for `/db?schema=gallery_v2`, with counts matching the expected split: `public` has 62 tags, while `gallery_v2` has 61 canonical tags and 0 images.
+- The new admin Test Page comparison was browser-validated locally against the live API through a Vite proxy target. In one sampled run, both schemas reported 32 sets and 891 generated images, and both metadata requests completed in 363 ms.
+- That same sampled run showed image timing dominated by asset variance rather than schema selection: original-schema previews that completed landed around 1052 to 1061 ms with full images around 4260 to 4580 ms, while `gallery_v2` preview timings ranged from 1057 to 4014 ms and full-image timings ranged from 1770 to 7749 ms.
 - Focused regression coverage was added for auth state, edit helpers, tag filtering, and thumbnail-first modal loading.
 - The gallery Jest harness was updated so the focused gallery tests run cleanly.
 - Full Jest passed during the recent tagging work.
-- Production build passed during the recent auth, edit-surface, tagging, modal-loading, and banner work.
+- Production build passed during the recent auth, edit-surface, tagging, modal-loading, banner, and schema-test-page work.
 - The updated top banner was browser-verified locally against mocked `/api/health` and `/api/db` responses because the local backend health gate was unavailable.
 - Repo-wide lint still has unrelated pre-existing failures outside the recent auth/edit/tagging changes.
 - The backend repository still lacks a runnable local `jest` binary, so the committed thumbnail endpoint regression test cannot yet run through `npm test`.
@@ -79,6 +82,7 @@ Last updated: 2026-09-06
 - `gallery_v2.images` is intentionally unseeded for now because the current live schema does not catalog images yet; a later backfill should derive canonical image rows from a trusted S3 inventory path rather than the current ad hoc API shape.
 - The backend still queries unqualified `public` table names, so `gallery_v2` remains an experimental schema until code adds schema qualification or a dedicated search path.
 - Only `/api/db` is schema-aware right now; the rest of the DB-backed read and edit routes still assume `public` and would need the same abstraction before end-to-end v2 testing through the full backend surface.
+- The schema comparison Test Page currently samples random images, so repeated runs or a matched-image mode would make public-vs-v2 timing comparisons less noisy.
 - Red-tag exclusion currently depends on right click; a mobile-safe exclusion affordance is still worth adding.
 - There are stale tag utilities and duplicate context files that should either be removed or realigned.
 - Local backend env and session settings still need one explicit reference note for browser validation: `JWT_SECRET`, `DATABASE_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `PATREON_CLIENT_ID`, `PATREON_CLIENT_SECRET`, `PATREON_REDIRECT_URI`, `FRONTEND_URL`, `AUTH_COOKIE_NAME`, `AUTH_TOKEN_EXPIRES_IN`, `AUTH_COOKIE_SECURE`, and `OAUTH_REDIRECT_MODE`.
