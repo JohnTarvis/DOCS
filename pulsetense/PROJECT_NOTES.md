@@ -71,6 +71,7 @@ Last updated: 2026-09-06
 - Local browser verification against a Vite proxy to the live API confirmed the real gallery page now requests `GET /api/db?schema=gallery_v2`, received `200` with 30 `subjects`, 32 `sets`, and 61 `tags`, and rendered 18 images on pages view without a health-gate error.
 - The new admin Test Page comparison was browser-validated locally against the live API through a Vite proxy target. In one sampled run, both schemas reported 32 sets and 891 generated images, and both metadata requests completed in 363 ms.
 - That same sampled run showed image timing dominated by asset variance rather than schema selection: original-schema previews that completed landed around 1052 to 1061 ms with full images around 4260 to 4580 ms, while `gallery_v2` preview timings ranged from 1057 to 4014 ms and full-image timings ranged from 1770 to 7749 ms.
+- Final frontend close-out validation passed after the explicit schema-v2 migration: full Jest passed with 11 suites and 36 tests, targeted ESLint passed on the changed frontend files, and the production build passed.
 - Focused regression coverage was added for auth state, edit helpers, tag filtering, and thumbnail-first modal loading.
 - The gallery Jest harness was updated so the focused gallery tests run cleanly.
 - Full Jest passed during the recent tagging work.
