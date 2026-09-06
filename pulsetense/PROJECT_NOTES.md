@@ -157,6 +157,24 @@ Schema source for recreation or review lives in `documents/gallery-v2-schema.sql
 - Realign the gallery modal tag editor path with the current `EditTagsModal` interface.
 - Keep the modal image-load follow-up in scope once the backend can serve a modal-sized watermarked asset for first paint.
 
+## Monetization Recommendation
+
+- Treat original or clearly licensable collections as the primary revenue surface.
+- Treat fanart as a discovery surface, not the core commercial catalog.
+- Put stronger conversion paths on original-work pages: Patreon tiers, curated digital packs, wallpaper bundles, commissions, and commercial licensing inquiry links.
+- Keep fanart monetization conservative: avoid direct print, download, licensing, or high-pressure purchase CTAs on recognizable third-party IP pages unless rights are secured.
+- If ads are introduced, place them on the broader public site with the assumption that ad-supported fanart is still commercial use and does not remove copyright or trademark risk.
+- Prioritize one low-friction funnel first: a support membership or email capture tied to original-work rewards performs better than scattering weak CTAs across thin pages.
+
+## Fanart Advertising Guidance
+
+- Advertising around fanart can still create the same core licensing problem because the site is commercially benefiting from copyrighted or trademarked characters and brands.
+- Ad revenue is usually less aggressive than selling prints or direct licenses, but it is not a clean workaround and can still draw takedowns, trademark complaints, or ad-network policy problems.
+- The safer operating model is to separate original/licensable work from fanart in both site structure and revenue strategy.
+- Avoid language that implies endorsement, partnership, or official affiliation on fanart pages.
+- Keep a visible takedown path and be prepared to remove or de-monetize specific fanart pages quickly if needed.
+- If the business model needs dependable monetization, build it around original collections and treat any fanart traffic as non-core and higher risk.
+
 ## Detailed Source Notes
 
 - `frontend/documents/frontend-agent-handoff-2026-09-05.md`
