@@ -25,6 +25,7 @@ Last updated: 2026-09-06
 - Local username/password registration now writes `password_hash` to match the live `users` schema instead of the broken old `password` column expectation.
 - Gallery and carousel modal views now show the existing thumbnail stretched to the modal frame immediately while the larger image loads, replacing the old spinner-only wait state.
 - The top banner now uses a darker cinematic gradient and an animated logo treatment with soft red light rays behind the emblem.
+- The main frontend gallery loader now explicitly requests `GET /api/db?schema=gallery_v2` and normalizes raw v2 `subjects`, `sets`, and `tags` into the existing client-side gallery contract.
 - The admin Test Page is now repurposed as a schema comparison surface that fetches both `/api/db` and `/api/db?schema=gallery_v2`, samples random gallery images, and times preview plus full-image loading side by side.
 - The live Postgres database now contains both normalized `gallery_v2` base tables and a `gallery_v2_compat` view-and-trigger layer that maps the existing legacy backend SQL shape into v2.
 - `gallery_v2` keeps normalized gallery metadata tables and adds a first-class `images` catalog table that does not exist in the current live schema.
@@ -49,7 +50,7 @@ Last updated: 2026-09-06
 - New session bootstrap endpoints are available for the frontend migration: `GET /api/auth/session`, `GET /api/auth/me`, and `POST /api/auth/logout`.
 - Clean OAuth session bootstrap is available now through `GET /api/auth/google?mode=session`, `GET /api/auth/patreon?mode=session`, `GET /api/auth/google/session`, and `GET /api/auth/patreon/session`.
 - The existing `GET /api/auth/google` and `GET /api/auth/patreon` routes still default to the legacy token-in-URL redirect until the frontend switches to session bootstrap.
-- The main frontend gallery path still reads a legacy-shaped payload from `/api/db`, but that default payload is now backed by `gallery_v2` through the compatibility layer rather than `public`.
+- The main frontend gallery path now explicitly reads `GET /api/db?schema=gallery_v2` and normalizes the raw v2 payload client-side.
 - Explicit comparison reads remain available: `GET /api/db?schema=public`, `GET /api/db?schema=gallery_v2`, and `GET /api/db?compare=1`.
 
 ## Validation Status
@@ -67,12 +68,13 @@ Last updated: 2026-09-06
 - The live-db cutover smoke returned the new default `/api/db` payload counts from the active v2-backed layer: 30 `subjects`, 32 `sets`, 61 `tags`, 10 `set_tags`, and 99 `subject_tags`.
 - The same live-db smoke confirmed explicit comparison reads still match expectations: `GET /api/db?schema=public` returned 62 tags, while `GET /api/db?schema=gallery_v2` returned 61 canonical tags and 0 images.
 - Representative legacy write SQL was exercised successfully against the compatibility layer inside rollback transactions: `UPDATE sets SET name = name ...`, `INSERT INTO set_tags (set_id, tag) ...`, `INSERT INTO subject_tags (subject_id, tag) ...`, and upload-style `INSERT INTO subjects (...)` plus `INSERT INTO sets (...)` all resolved cleanly into `gallery_v2` and left no persisted smoke-test data.
+- Local browser verification against a Vite proxy to the live API confirmed the real gallery page now requests `GET /api/db?schema=gallery_v2`, received `200` with 30 `subjects`, 32 `sets`, and 61 `tags`, and rendered 18 images on pages view without a health-gate error.
 - The new admin Test Page comparison was browser-validated locally against the live API through a Vite proxy target. In one sampled run, both schemas reported 32 sets and 891 generated images, and both metadata requests completed in 363 ms.
 - That same sampled run showed image timing dominated by asset variance rather than schema selection: original-schema previews that completed landed around 1052 to 1061 ms with full images around 4260 to 4580 ms, while `gallery_v2` preview timings ranged from 1057 to 4014 ms and full-image timings ranged from 1770 to 7749 ms.
 - Focused regression coverage was added for auth state, edit helpers, tag filtering, and thumbnail-first modal loading.
 - The gallery Jest harness was updated so the focused gallery tests run cleanly.
 - Full Jest passed during the recent tagging work.
-- Production build passed during the recent auth, edit-surface, tagging, modal-loading, banner, and schema-test-page work.
+- Production build passed during the recent auth, edit-surface, tagging, modal-loading, banner, schema-test-page, and frontend schema-v2 migration work.
 - The updated top banner was browser-verified locally against mocked `/api/health` and `/api/db` responses because the local backend health gate was unavailable.
 - Repo-wide lint still has unrelated pre-existing failures outside the recent auth/edit/tagging changes.
 - The backend repository still lacks a runnable local `jest` binary, so the committed thumbnail endpoint regression test cannot yet run through `npm test`.
@@ -87,7 +89,7 @@ Last updated: 2026-09-06
 - Thumbnail caching is now improved within a single backend process, but persistent cache reuse across dyno restarts or multiple instances is still open.
 - `gallery_v2.images` is intentionally unseeded for now because the current live schema does not catalog images yet; a later backfill should derive canonical image rows from a trusted S3 inventory path rather than the current ad hoc API shape.
 - Image-level DB routes are still limited by the empty `gallery_v2.images` catalog, so paths such as `/api/delete-image-db` are not meaningfully migrated until image backfill lands or those routes are retired.
-- The live database layer is migrated now, but the hosted backend will not use the new v2-default search path until this code is deployed.
+- The main frontend gallery path is migrated locally now, but the hosted website will not use the explicit `?schema=gallery_v2` request until this frontend build is deployed.
 - The schema comparison Test Page currently samples random images, so repeated runs or a matched-image mode would make public-vs-v2 timing comparisons less noisy.
 - Red-tag exclusion currently depends on right click; a mobile-safe exclusion affordance is still worth adding.
 - There are stale tag utilities and duplicate context files that should either be removed or realigned.
