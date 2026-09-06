@@ -25,8 +25,8 @@ Last updated: 2026-09-06
 - Local username/password registration now writes `password_hash` to match the live `users` schema instead of the broken old `password` column expectation.
 - Gallery and carousel modal views now show the existing thumbnail stretched to the modal frame immediately while the larger image loads, replacing the old spinner-only wait state.
 - The top banner now uses a darker cinematic gradient and an animated logo treatment with soft red light rays behind the emblem.
-- The main frontend gallery loader now explicitly requests `GET /api/db?schema=gallery_v2` and normalizes raw v2 `subjects`, `sets`, and `tags` into the existing client-side gallery contract.
-- The admin Test Page is now repurposed as a schema comparison surface that fetches both `/api/db` and `/api/db?schema=gallery_v2`, samples random gallery images, and times preview plus full-image loading side by side.
+- The main frontend gallery loader now explicitly requests `GET /api/db?schema=${VITE_GALLERY_DB_SCHEMA}` and normalizes the configured schema payload into the existing client-side gallery contract; the current migrated path targets `gallery_v2`.
+- The admin Test Page is now repurposed as a schema comparison surface that fetches `GET /api/db?schema=public` and `GET /api/db?schema=gallery_v2`, samples random gallery images, and times preview plus full-image loading side by side.
 - The live Postgres database now contains both normalized `gallery_v2` base tables and a `gallery_v2_compat` view-and-trigger layer that maps the existing legacy backend SQL shape into v2.
 - `gallery_v2` keeps normalized gallery metadata tables and adds a first-class `images` catalog table that does not exist in the current live schema.
 - The initial `gallery_v2` seed copied the current relational data and canonicalized one duplicate normalized tag pair: `old-school` and `old school` now map to one v2 tag record.
@@ -91,6 +91,7 @@ Last updated: 2026-09-06
 - `gallery_v2.images` is intentionally unseeded for now because the current live schema does not catalog images yet; a later backfill should derive canonical image rows from a trusted S3 inventory path rather than the current ad hoc API shape.
 - Image-level DB routes are still limited by the empty `gallery_v2.images` catalog, so paths such as `/api/delete-image-db` are not meaningfully migrated until image backfill lands or those routes are retired.
 - The main frontend gallery path is migrated locally now, but the hosted website will not use the explicit `?schema=gallery_v2` request until this frontend build is deployed.
+- Once the hosted backend and hosted frontend are both on the v2 path, decide whether `public` becomes a frozen reference snapshot or receives an explicit one-way sync from v2; leaving both schemas notionally live will create silent drift.
 - The schema comparison Test Page currently samples random images, so repeated runs or a matched-image mode would make public-vs-v2 timing comparisons less noisy.
 - Red-tag exclusion currently depends on right click; a mobile-safe exclusion affordance is still worth adding.
 - There are stale tag utilities and duplicate context files that should either be removed or realigned.
@@ -120,6 +121,14 @@ Last updated: 2026-09-06
 - Review the modal image path from the backend side as a performance and exposure issue: serve a dedicated modal-sized watermarked asset rather than the largest watermarked file for first paint when possible.
 - Install and pin Jest in the backend repo so committed endpoint regression tests can run through the standard test command.
 - Document the required local backend env for JWT, OAuth, and database TLS so local end-to-end browser validation can start without manual discovery.
+
+## Additional Recommendations From Review
+
+- Add a lightweight drift check between `public` and `gallery_v2` during the transition, and run it after deploys or bulk admin edits so schema divergence is detected deliberately instead of discovered later by accident.
+- Move long-term gallery payload normalization behind one intentional API contract or shared transform layer instead of keeping the frontend coupled to raw DB-shaped payload differences.
+- Wrap multi-step DB mutation flows that also touch S3 in explicit DB transactions plus operation logging so partial failures can be diagnosed and repaired without guessing which side won.
+- Add basic production observability for the remaining hot paths: `/api/db` latency by schema, thumbnail cache hit rate, thumbnail generation time, and modal full-image transfer size.
+- Add a post-deploy smoke checklist or script that verifies active auth mode, active DB search path, `/api/db` schema endpoints, and one no-op admin-authenticated mutation path before declaring the deploy healthy.
 
 ## Gallery V2 Tables
 
