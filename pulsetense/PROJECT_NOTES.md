@@ -26,10 +26,11 @@ Last updated: 2026-09-06
 - Gallery and carousel modal views now show the existing thumbnail stretched to the modal frame immediately while the larger image loads, replacing the old spinner-only wait state.
 - The top banner now uses a darker cinematic gradient and an animated logo treatment with soft red light rays behind the emblem.
 - The admin Test Page is now repurposed as a schema comparison surface that fetches both `/api/db` and `/api/db?schema=gallery_v2`, samples random gallery images, and times preview plus full-image loading side by side.
-- The live Postgres database now also contains a separate `gallery_v2` schema for model experiments while the running app remains on the existing `public` schema.
+- The live Postgres database now contains both normalized `gallery_v2` base tables and a `gallery_v2_compat` view-and-trigger layer that maps the existing legacy backend SQL shape into v2.
 - `gallery_v2` keeps normalized gallery metadata tables and adds a first-class `images` catalog table that does not exist in the current live schema.
 - The initial `gallery_v2` seed copied the current relational data and canonicalized one duplicate normalized tag pair: `old-school` and `old school` now map to one v2 tag record.
-- The local backend now supports schema-aware gallery metadata reads for frontend testing: `/api/db` keeps the legacy `public` payload, `/api/db?schema=gallery_v2` returns the v2 payload, and `/api/db?compare=1` returns both schemas side by side.
+- The backend DB pool now defaults its search path to `gallery_v2_compat,gallery_v2,public`, so unqualified gallery metadata reads and the current legacy upload/edit SQL resolve to v2-backed tables without changing the frontend contract.
+- `/api/db` now returns the active legacy-shaped v2-backed payload by default, `/api/db?schema=public` returns the original `public` payload, `/api/db?schema=gallery_v2` returns the raw v2 payload, and `/api/db?compare=1` returns both explicit schemas side by side for the comparison page.
 
 ## Tag System Updates
 
@@ -48,7 +49,8 @@ Last updated: 2026-09-06
 - New session bootstrap endpoints are available for the frontend migration: `GET /api/auth/session`, `GET /api/auth/me`, and `POST /api/auth/logout`.
 - Clean OAuth session bootstrap is available now through `GET /api/auth/google?mode=session`, `GET /api/auth/patreon?mode=session`, `GET /api/auth/google/session`, and `GET /api/auth/patreon/session`.
 - The existing `GET /api/auth/google` and `GET /api/auth/patreon` routes still default to the legacy token-in-URL redirect until the frontend switches to session bootstrap.
-- `/api/db` is still assumed to remain public until the gallery data path is redesigned.
+- The main frontend gallery path still reads a legacy-shaped payload from `/api/db`, but that default payload is now backed by `gallery_v2` through the compatibility layer rather than `public`.
+- Explicit comparison reads remain available: `GET /api/db?schema=public`, `GET /api/db?schema=gallery_v2`, and `GET /api/db?compare=1`.
 
 ## Validation Status
 
@@ -59,8 +61,12 @@ Last updated: 2026-09-06
 - Focused local auth/session smoke validation passed with a stubbed user model: `GET /api/auth/session` anonymous returned `200` with `authenticated: false`; `POST /api/auth/login` returned `200`, preserved the token response, and set an `HttpOnly` auth cookie; `GET /api/auth/session` with the cookie returned `200` with `tokenSource: cookie` and `role: admin`; `GET /api/auth/me` with a bearer token returned `200` with `tokenSource: bearer`; cookie-protected auth and admin routes returned `200`; and `POST /api/auth/logout` returned `200` and cleared the auth cookie.
 - Local redirect-mode helper validation passed: session mode builds a clean frontend redirect without `?token=...`, while legacy mode still builds the token-in-URL redirect for compatibility.
 - `gallery_v2` creation was validated in the live database: 30 `subjects`, 32 `sets`, 61 canonical `tags`, 99 `subject_tags`, 10 `set_tags`, 2 `users`, and an empty `images` table ready for backfill.
+- The new `gallery_v2_compat` schema was applied successfully in the live database from `documents/gallery-v2-compat.sql`.
 - The updated `/api/db` route was smoke-tested locally against a stubbed DB layer and then against the live database with `DATABASE_URL` set for the local process.
-- The live-db smoke test returned `200` for `/db?compare=1` and `200` for `/db?schema=gallery_v2`, with counts matching the expected split: `public` has 62 tags, while `gallery_v2` has 61 canonical tags and 0 images.
+- The live-db cutover smoke showed the backend pool using `search_path = gallery_v2_compat,gallery_v2,public`.
+- The live-db cutover smoke returned the new default `/api/db` payload counts from the active v2-backed layer: 30 `subjects`, 32 `sets`, 61 `tags`, 10 `set_tags`, and 99 `subject_tags`.
+- The same live-db smoke confirmed explicit comparison reads still match expectations: `GET /api/db?schema=public` returned 62 tags, while `GET /api/db?schema=gallery_v2` returned 61 canonical tags and 0 images.
+- Representative legacy write SQL was exercised successfully against the compatibility layer inside rollback transactions: `UPDATE sets SET name = name ...`, `INSERT INTO set_tags (set_id, tag) ...`, `INSERT INTO subject_tags (subject_id, tag) ...`, and upload-style `INSERT INTO subjects (...)` plus `INSERT INTO sets (...)` all resolved cleanly into `gallery_v2` and left no persisted smoke-test data.
 - The new admin Test Page comparison was browser-validated locally against the live API through a Vite proxy target. In one sampled run, both schemas reported 32 sets and 891 generated images, and both metadata requests completed in 363 ms.
 - That same sampled run showed image timing dominated by asset variance rather than schema selection: original-schema previews that completed landed around 1052 to 1061 ms with full images around 4260 to 4580 ms, while `gallery_v2` preview timings ranged from 1057 to 4014 ms and full-image timings ranged from 1770 to 7749 ms.
 - Focused regression coverage was added for auth state, edit helpers, tag filtering, and thumbnail-first modal loading.
@@ -80,8 +86,8 @@ Last updated: 2026-09-06
 - The modal currently downloads full watermarked images for first paint; a dedicated modal-sized variant or more compressed format would likely be the biggest remaining image-load win.
 - Thumbnail caching is now improved within a single backend process, but persistent cache reuse across dyno restarts or multiple instances is still open.
 - `gallery_v2.images` is intentionally unseeded for now because the current live schema does not catalog images yet; a later backfill should derive canonical image rows from a trusted S3 inventory path rather than the current ad hoc API shape.
-- The backend still queries unqualified `public` table names, so `gallery_v2` remains an experimental schema until code adds schema qualification or a dedicated search path.
-- Only `/api/db` is schema-aware right now; the rest of the DB-backed read and edit routes still assume `public` and would need the same abstraction before end-to-end v2 testing through the full backend surface.
+- Image-level DB routes are still limited by the empty `gallery_v2.images` catalog, so paths such as `/api/delete-image-db` are not meaningfully migrated until image backfill lands or those routes are retired.
+- The live database layer is migrated now, but the hosted backend will not use the new v2-default search path until this code is deployed.
 - The schema comparison Test Page currently samples random images, so repeated runs or a matched-image mode would make public-vs-v2 timing comparisons less noisy.
 - Red-tag exclusion currently depends on right click; a mobile-safe exclusion affordance is still worth adding.
 - There are stale tag utilities and duplicate context files that should either be removed or realigned.
@@ -105,9 +111,9 @@ Last updated: 2026-09-06
 - Apply production security headers at the backend or platform edge: `Content-Security-Policy`, `Referrer-Policy`, `X-Content-Type-Options`, `Strict-Transport-Security`, and `Permissions-Policy` where appropriate.
 - Reconfirm CORS after the auth change so only the real frontend origins are allowed and credentialed requests are intentional.
 - Extend thumbnail caching beyond in-process memory if live measurements still show costly first-hit regeneration after deploys or instance churn.
-- Backfill `gallery_v2.images` from a trusted S3 inventory or direct S3 listing path so image identity stops being inferred at request time.
-- If the frontend starts consuming v2 payloads, factor schema selection into a shared data-access layer so `images-db`, edit routes, and any future set or tag routes do not duplicate schema-specific SQL by hand.
-- Decide whether v2 adoption should happen through schema-qualified queries, a configurable search path, or a staged data-migration layer in the backend.
+- Deploy the backend build that includes the `gallery_v2_compat` search-path cutover, then browser-smoke the live admin upload, edit-set, delete-set, and tag-edit flows against production.
+- Backfill `gallery_v2.images` from a trusted S3 inventory or direct S3 listing path so image identity stops being inferred at request time, then either migrate image-level routes onto that catalog or remove the DB image table assumption entirely.
+- Add focused regression coverage for the compat-backed upload/edit/delete DB routes once Jest is installed locally in the backend repo.
 - Review the modal image path from the backend side as a performance and exposure issue: serve a dedicated modal-sized watermarked asset rather than the largest watermarked file for first paint when possible.
 - Install and pin Jest in the backend repo so committed endpoint regression tests can run through the standard test command.
 - Document the required local backend env for JWT, OAuth, and database TLS so local end-to-end browser validation can start without manual discovery.
@@ -122,7 +128,15 @@ Last updated: 2026-09-06
 - `gallery_v2.set_tags`
 - `gallery_v2.users`
 
-Schema source for recreation or review lives in `documents/gallery-v2-schema.sql`.
+## Gallery V2 Compatibility Views
+
+- `gallery_v2_compat.subjects`
+- `gallery_v2_compat.sets`
+- `gallery_v2_compat.tags`
+- `gallery_v2_compat.subject_tags`
+- `gallery_v2_compat.set_tags`
+
+Schema source for recreation or review lives in `documents/gallery-v2-schema.sql` and `documents/gallery-v2-compat.sql`.
 
 ## Frontend Agent Recommendations
 
