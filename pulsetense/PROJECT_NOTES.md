@@ -1,3 +1,5 @@
+> Source of truth: This is the canonical PulseTense project notes file. GitHub URL: https://github.com/JohnTarvis/DOCS/blob/main/pulsetense/PROJECT_NOTES.md
+
 # PulseTense Project Notes
 
 Last updated: 2026-09-06
