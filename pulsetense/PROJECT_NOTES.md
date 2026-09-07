@@ -2,7 +2,7 @@
 
 # PulseTense Project Notes
 
-Last updated: 2026-09-06
+Last updated: 2026-09-07
 
 ## Project Layout
 
@@ -18,6 +18,7 @@ Last updated: 2026-09-06
 - The edit surface uses authenticated requests against `VITE_API_URL` for upload, edit-set, delete-set, and delete-all operations.
 - The edit surface now refreshes the shared gallery state in place after mutations instead of forcing full page reloads.
 - Subject-tag editing on the edit surface now resolves the correct `subject_id` and preserves comma-separated tag input.
+- The edit surface now also sends full set storage paths for set-tag and set-order saves, keeps the tag modal on the shared API-base pattern, and preserves all-image deletions from the set editor instead of silently dropping an empty reorder request.
 - Backend thumbnail responses now reuse generated thumbnails in-process, reuse the loaded watermark buffer, and send `Cache-Control` plus `ETag` headers.
 - The backend now has additive cookie-session primitives alongside the existing bearer flow: `POST /api/auth/login` still returns a token, also sets an auth cookie, auth middleware accepts either bearer or cookie auth, and `GET /api/auth/session`, `GET /api/auth/me`, and `POST /api/auth/logout` are now implemented.
 - Google and Patreon OAuth now support clean cookie-session bootstrap through `?mode=session` and dedicated `/api/auth/google/session` and `/api/auth/patreon/session` entrypoints.
@@ -32,6 +33,8 @@ Last updated: 2026-09-06
 - The initial `gallery_v2` seed copied the current relational data and canonicalized one duplicate normalized tag pair: `old-school` and `old school` now map to one v2 tag record.
 - The backend DB pool now defaults its search path to `gallery_v2_compat,gallery_v2,public`, so unqualified gallery metadata reads and the current legacy upload/edit SQL resolve to v2-backed tables without changing the frontend contract.
 - `/api/db` now returns the active legacy-shaped v2-backed payload by default, `/api/db?schema=public` returns the original `public` payload, `/api/db?schema=gallery_v2` returns the raw v2 payload, and `/api/db?compare=1` returns both explicit schemas side by side for the comparison page.
+- The frontend gallery transform now prefers canonical `gallery_v2.images` rows when they exist and falls back to inferred filenames only while the image catalog remains empty.
+- The backend upload path now persists the actual storage-selected `setN` folder into the DB record, and next-set-folder selection now uses the highest existing set number instead of folder count so S3 or local uploads do not reuse an existing prefix after deletions.
 
 ## Tag System Updates
 
@@ -72,6 +75,10 @@ Last updated: 2026-09-06
 - The new admin Test Page comparison was browser-validated locally against the live API through a Vite proxy target. In one sampled run, both schemas reported 32 sets and 891 generated images, and both metadata requests completed in 363 ms.
 - That same sampled run showed image timing dominated by asset variance rather than schema selection: original-schema previews that completed landed around 1052 to 1061 ms with full images around 4260 to 4580 ms, while `gallery_v2` preview timings ranged from 1057 to 4014 ms and full-image timings ranged from 1770 to 7749 ms.
 - Final frontend close-out validation passed after the explicit schema-v2 migration: full Jest passed with 11 suites and 36 tests, targeted ESLint passed on the changed frontend files, and the production build passed.
+- Focused review follow-up validation on 2026-09-07 passed for `src/__tests__/galleryUtils.test.js`, including new coverage for canonical `gallery_v2.images` rows.
+- Targeted ESLint passed on the changed frontend edit and gallery-transform files after the 2026-09-07 review patch.
+- Static diagnostics found no errors in the touched frontend files or in the touched backend storage/upload files after the 2026-09-07 review patch.
+- A focused backend Jest test was added for the next-set-folder gap case, but it could not run locally because this backend checkout still does not have a runnable local Jest install.
 - Focused regression coverage was added for auth state, edit helpers, tag filtering, and thumbnail-first modal loading.
 - The gallery Jest harness was updated so the focused gallery tests run cleanly.
 - Full Jest passed during the recent tagging work.
@@ -90,12 +97,15 @@ Last updated: 2026-09-06
 - Thumbnail caching is now improved within a single backend process, but persistent cache reuse across dyno restarts or multiple instances is still open.
 - `gallery_v2.images` is intentionally unseeded for now because the current live schema does not catalog images yet; a later backfill should derive canonical image rows from a trusted S3 inventory path rather than the current ad hoc API shape.
 - Image-level DB routes are still limited by the empty `gallery_v2.images` catalog, so paths such as `/api/delete-image-db` are not meaningfully migrated until image backfill lands or those routes are retired.
+- `POST /api/delete-all` is still a local-filesystem-only implementation; before relying on it in S3 or v2-backed DB mode, replace it with a storage-aware and DB-aware admin route that clears S3 objects plus active gallery metadata together.
 - The main frontend gallery path is migrated locally now, but the hosted website will not use the explicit `?schema=gallery_v2` request until this frontend build is deployed.
 - Once the hosted backend and hosted frontend are both on the v2 path, decide whether `public` becomes a frozen reference snapshot or receives an explicit one-way sync from v2; leaving both schemas notionally live will create silent drift.
 - The schema comparison Test Page currently samples random images, so repeated runs or a matched-image mode would make public-vs-v2 timing comparisons less noisy.
 - Red-tag exclusion currently depends on right click; a mobile-safe exclusion affordance is still worth adding.
 - There are stale tag utilities and duplicate context files that should either be removed or realigned.
 - Local backend env and session settings still need one explicit reference note for browser validation: `JWT_SECRET`, `DATABASE_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `PATREON_CLIENT_ID`, `PATREON_CLIENT_SECRET`, `PATREON_REDIRECT_URI`, `FRONTEND_URL`, `AUTH_COOKIE_NAME`, `AUTH_TOKEN_EXPIRES_IN`, `AUTH_COOKIE_SECURE`, and `OAUTH_REDIRECT_MODE`.
+- The edit-tag modal still drops newly typed tag names because the frontend save path collapses modal input back to numeric tag IDs only; either support string tag names end-to-end through the compat layer or block unknown tags explicitly in the UI.
+- `src/components/edit/ImageActions.jsx` remains unused dead code and should either be removed or wired into a real image-level edit path.
 
 ## Backend Agent Recommendations
 
@@ -117,6 +127,8 @@ Last updated: 2026-09-06
 - Extend thumbnail caching beyond in-process memory if live measurements still show costly first-hit regeneration after deploys or instance churn.
 - Deploy the backend build that includes the `gallery_v2_compat` search-path cutover, then browser-smoke the live admin upload, edit-set, delete-set, and tag-edit flows against production.
 - Backfill `gallery_v2.images` from a trusted S3 inventory or direct S3 listing path so image identity stops being inferred at request time, then either migrate image-level routes onto that catalog or remove the DB image table assumption entirely.
+- Replace the current `POST /api/delete-all` implementation with a route that deletes `main/uploads/` in S3 and clears the active gallery metadata layer in the same admin operation.
+- Add a direct raw-object or derivative-asset delivery path if the frontend should eventually use `thumbnail_key`, `modal_key`, or `watermarked_key` from `gallery_v2.images` instead of always regenerating assets from `original_key`.
 - Add focused regression coverage for the compat-backed upload/edit/delete DB routes once Jest is installed locally in the backend repo.
 - Review the modal image path from the backend side as a performance and exposure issue: serve a dedicated modal-sized watermarked asset rather than the largest watermarked file for first paint when possible.
 - Install and pin Jest in the backend repo so committed endpoint regression tests can run through the standard test command.
@@ -129,6 +141,7 @@ Last updated: 2026-09-06
 - Wrap multi-step DB mutation flows that also touch S3 in explicit DB transactions plus operation logging so partial failures can be diagnosed and repaired without guessing which side won.
 - Add basic production observability for the remaining hot paths: `/api/db` latency by schema, thumbnail cache hit rate, thumbnail generation time, and modal full-image transfer size.
 - Add a post-deploy smoke checklist or script that verifies active auth mode, active DB search path, `/api/db` schema endpoints, and one no-op admin-authenticated mutation path before declaring the deploy healthy.
+- Keep the frontend on canonical image keys from `gallery_v2.images` whenever available; the older `image_count` plus naming-convention fallback is only a compatibility bridge and should not remain the long-term source of truth for S3-backed edits.
 
 ## Gallery V2 Tables
 
