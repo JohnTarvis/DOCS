@@ -52,7 +52,7 @@ Last updated: 2026-09-07
 - Add a durable backend path for moving one or more existing images between sets without forcing a fresh upload flow; this should update canonical DB image rows, preserve ordering, and stay safe for S3-backed storage.
 - Add a durable backend path for adding existing images into an existing set and for creating a new set from selected existing images, not just from brand-new uploads.
 - Add a durable backend path for moving a set from one subject to another, including storage-path updates, compatibility-layer updates, and any cascading references that depend on the set path.
-- The backend now accepts mixed existing tag IDs and newly typed tag names in DB-backed edit saves; the remaining requirement is for the frontend edit flow to preserve typed names instead of collapsing them away before submit.
+- The backend and frontend now both preserve mixed existing tag IDs and newly typed tag names in DB-backed edit saves; browser-smoke one deployed tag edit after release to confirm the hosted frontend matches the local regression coverage.
 - Finish the `gallery_v2.images` backfill and keep image-level IDs authoritative so future edit routes can target canonical image rows instead of inferred filenames alone.
 - Replace or redesign `/api/delete-all` for DB or S3-backed mode; the current local-only destructive path is not sufficient for the broader admin editor and should not be treated as production-safe for cloud storage.
 - When planning the next backend routes, prefer batch-friendly request shapes so the current frontend staging area can grow into multi-image and multi-set operations without another contract rewrite.
