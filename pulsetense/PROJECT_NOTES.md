@@ -40,6 +40,7 @@ Last updated: 2026-09-07
 - The frontend OAuth entrypoint switch to explicit token mode was validated with targeted ESLint on the touched files and a successful production build before being pushed to `pulse-tense-website-frontend` `main`.
 - Live browser validation on 2026-09-07 confirmed that Google login succeeds again on the deployed site after the token-mode OAuth switch.
 - Live browser validation on 2026-09-07 also confirmed that all 12 `FayeValentine/set1` thumbnails open the matching full-size image with no preview-to-modal filename mismatches.
+- Local backend startup resilience was also revalidated on 2026-09-07: missing local OAuth env no longer crashes the API, `/api/health` returns `{"ready":true}` with a temporary `JWT_SECRET`, and missing DB credentials now surface an explicit configuration error instead of opaque SSL or SCRAM startup failures.
 - Site-wide validation should continue to verify deployed auth/session behavior, active gallery schema behavior, and admin edit flows together after each milestone.
 
 ## Current Follow-Up Items
@@ -47,6 +48,7 @@ Last updated: 2026-09-07
 - Browser-smoke the deployed OAuth token fallback so hosted Google login, admin page access, and logout are confirmed against the live Netlify frontend after the `?mode=token` switch.
 - If the product goal remains minimal cookie usage, move OAuth mode persistence off the `pt_oauth_mode` cookie and into a signed `state` value or explicit callback variants so the redirect-mode choice no longer depends on any browser cookie at all.
 - If clean `httpOnly` session login is still required on split frontend and API origins, treat it as a separate backend architecture task and validate it specifically against modern third-party-cookie restrictions rather than assuming correct `SameSite=None; Secure` attributes are sufficient.
+- Populate `_new/backend/main/.env` from `_new/backend/main/.env.example` before expecting local DB-backed routes to work in this checkout; there is no committed local JWT or Postgres config here.
 - Retire the remaining browser token-bootstrap compatibility path only after the team decides whether the long-term production auth model is same-site session, cross-site session, or token-first OAuth.
 - The site still needs a coordinated edit-system overhaul so admin can manage images, sets, and subjects with finer control across the full stack.
 - `gallery_v2.images` remains an important missing piece for end-to-end image-level editing and should be backfilled from a trusted storage inventory path.
@@ -88,7 +90,7 @@ Last updated: 2026-09-07
 - `_new/backend/documents/misc/backend-code-review-2026-09-05.md`
 - `_new/backend/documents/sql/gallery-v2-schema.sql`
 - `_new/backend/documents/sql/gallery-v2-compat.sql`
-- `frontend/documents/FRONT-END_NOTES.md`
+- `_new/frontend/documents/FRONT-END_NOTES.md`
 
 ## Recommendation For Note Format
 
