@@ -38,6 +38,7 @@ Last updated: 2026-09-07
 - Detailed backend validation notes now live in `_new/backend/documents/BACK-END_NOTES.md`.
 - Backend auth-cookie hardening was validated locally with a focused regression test in `_new/backend/main/__tests__/authSessionUtils.test.js` and deployed to Heroku release `v483`.
 - The frontend OAuth entrypoint switch to explicit token mode was validated with targeted ESLint on the touched files and a successful production build before being pushed to `pulse-tense-website-frontend` `main`.
+- Live bundle inspection on 2026-09-07 confirmed the hosted frontend now includes both the explicit `?mode=token` OAuth starts and the explicit `?schema=gallery_v2` gallery request path.
 - Live browser validation on 2026-09-07 confirmed that Google login succeeds again on the deployed site after the token-mode OAuth switch.
 - Live browser validation on 2026-09-07 also confirmed that all 12 `FayeValentine/set1` thumbnails open the matching full-size image with no preview-to-modal filename mismatches.
 - Local backend startup resilience was also revalidated on 2026-09-07: missing local OAuth env no longer crashes the API, `/api/health` returns `{"ready":true}` with a temporary `JWT_SECRET`, and missing DB credentials now surface an explicit configuration error instead of opaque SSL or SCRAM startup failures.
@@ -45,7 +46,7 @@ Last updated: 2026-09-07
 
 ## Current Follow-Up Items
 
-- Browser-smoke the deployed OAuth token fallback so hosted Google login, admin page access, and logout are confirmed against the live Netlify frontend after the `?mode=token` switch.
+- Finish browser-smoking the deployed OAuth token fallback so hosted Patreon login, admin page access, logout, and refresh behavior are confirmed against the live Netlify frontend after the `?mode=token` switch.
 - If the product goal remains minimal cookie usage, move OAuth mode persistence off the `pt_oauth_mode` cookie and into a signed `state` value or explicit callback variants so the redirect-mode choice no longer depends on any browser cookie at all.
 - If clean `httpOnly` session login is still required on split frontend and API origins, treat it as a separate backend architecture task and validate it specifically against modern third-party-cookie restrictions rather than assuming correct `SameSite=None; Secure` attributes are sufficient.
 - Populate `_new/backend/main/.env` from `_new/backend/main/.env.example` before expecting local DB-backed routes to work in this checkout; there is no committed local JWT or Postgres config here.
