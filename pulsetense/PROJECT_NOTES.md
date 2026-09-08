@@ -8,7 +8,7 @@ Last updated: 2026-09-07
 
 - `_new/backend/`: backend API and auth-protected admin routes
 - `_new/frontend/`: Vite + React frontend
-- `_new/frontend/documents/`: detailed frontend architecture, bug triage, and handoff notes
+- `_new/frontend/documents/`: active frontend-only planning notes, with older supporting notes grouped under `misc/`
 
 ## Current State
 
@@ -35,6 +35,7 @@ Last updated: 2026-09-07
 - `/api/db` now returns the active legacy-shaped v2-backed payload by default, `/api/db?schema=public` returns the original `public` payload, `/api/db?schema=gallery_v2` returns the raw v2 payload, and `/api/db?compare=1` returns both explicit schemas side by side for the comparison page.
 - The frontend gallery transform now prefers canonical `gallery_v2.images` rows when they exist and falls back to inferred filenames only while the image catalog remains empty.
 - The backend upload path now persists the actual storage-selected `setN` folder into the DB record, and next-set-folder selection now uses the highest existing set number instead of folder count so S3 or local uploads do not reuse an existing prefix after deletions.
+- The next planned frontend task is a broader `/edit` page overhaul focused on admin control, better readability, and clearer editing workflows for subjects, sets, and images.
 
 ## Tag System Updates
 
@@ -106,6 +107,7 @@ Last updated: 2026-09-07
 - Local backend env and session settings still need one explicit reference note for browser validation: `JWT_SECRET`, `DATABASE_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `PATREON_CLIENT_ID`, `PATREON_CLIENT_SECRET`, `PATREON_REDIRECT_URI`, `FRONTEND_URL`, `AUTH_COOKIE_NAME`, `AUTH_TOKEN_EXPIRES_IN`, `AUTH_COOKIE_SECURE`, and `OAUTH_REDIRECT_MODE`.
 - The edit-tag modal still drops newly typed tag names because the frontend save path collapses modal input back to numeric tag IDs only; either support string tag names end-to-end through the compat layer or block unknown tags explicitly in the UI.
 - `src/components/edit/ImageActions.jsx` remains unused dead code and should either be removed or wired into a real image-level edit path.
+- Frontend-only planning for the edit-page overhaul now lives in `frontend/documents/FRONT-END_NOTES.md`, while older frontend handoff and architecture notes are grouped under `frontend/documents/misc/`.
 
 ## Backend Agent Recommendations
 
@@ -173,6 +175,10 @@ Schema source for recreation or review lives in `documents/gallery-v2-schema.sql
 
 ## Frontend Next Steps
 
+- Make the edit page the next active frontend task and redesign it for much stronger admin control over subject, set, and image editing.
+- Frontend goal for the edit overhaul: the admin should be able to add or remove individual images within sets, move images between sets, create sets from selected images, and add, remove, or reassign sets across subjects.
+- Improve edit-page readability by replacing the current dense table-first layout with clearer sections, labeled actions, stronger selection states, and a visible staged-changes area.
+- Improve edit-page look and usability with better spacing, stronger visual hierarchy, explicit action labels, clearer destructive-action separation, and page-level status feedback.
 - Add a cookie policy page and footer or login-surface link that documents Google Analytics plus any future auth or session cookies.
 - When the backend exposes a session endpoint, remove browser token handling from the frontend auth bootstrap and read auth state from `GET /api/auth/session` or `GET /api/auth/me` instead.
 - Re-test live OAuth after the backend session migration to confirm the URL no longer exposes tokens and logout clears the server-owned session correctly.
@@ -199,10 +205,11 @@ Schema source for recreation or review lives in `documents/gallery-v2-schema.sql
 
 ## Detailed Source Notes
 
-- `frontend/documents/frontend-agent-handoff-2026-09-05.md`
-- `frontend/documents/frontend-bugs-and-fixes.md`
-- `frontend/documents/planned-frontend-updates.md`
-- `frontend/documents/frontend-architecture.md`
+- `frontend/documents/FRONT-END_NOTES.md`
+- `frontend/documents/misc/frontend-agent-handoff-2026-09-05.md`
+- `frontend/documents/misc/frontend-bugs-and-fixes.md`
+- `frontend/documents/misc/planned-frontend-updates.md`
+- `frontend/documents/misc/frontend-architecture.md`
 
 ## Recommendation For Note Format
 
