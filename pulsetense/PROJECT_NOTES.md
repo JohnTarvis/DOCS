@@ -17,7 +17,7 @@ Last updated: 2026-09-07
 - Canonical project notes now cover full-site concerns only.
 - Frontend-only implementation, UX, validation, and planning notes now live in `_new/frontend/documents/FRONT-END_NOTES.md`.
 - Backend-only implementation, schema, and operations notes now live in `_new/backend/documents/BACK-END_NOTES.md`.
-- Auth and gallery data are still mid-transition across the full site, but the coordinated frontend session-first bootstrap and backend default session redirect are now implemented locally; deployed browser validation and retirement of the last token-bootstrap fallback are still pending.
+- Auth and gallery data are still mid-transition across the full site. The backend cookie path has now been hardened for hosted HTTPS use, but deployed OAuth login is temporarily routed through explicit token-mode redirects because the split Netlify-to-Heroku session flow remains sensitive to browser cross-site cookie policy.
 - The gallery stack is also mid-transition to `gallery_v2` through compatibility views and explicit schema endpoints.
 - The next major full-site editing milestone is a broader admin edit-system overhaul so subjects, sets, and images can be managed with much finer control.
 - The first-pass frontend-only `/edit` overhaul is now in place locally through layout, readability, set-editor usability, uploader clarity, selection or staging preparation, and direct edit-surface tests; the next stage is primarily backend and contract work so the fuller admin controls can become durable.
@@ -29,18 +29,23 @@ Last updated: 2026-09-07
 - New session bootstrap endpoints are available for the frontend migration: `GET /api/auth/session`, `GET /api/auth/me`, and `POST /api/auth/logout`.
 - Clean OAuth session bootstrap is available now through `GET /api/auth/google?mode=session`, `GET /api/auth/patreon?mode=session`, `GET /api/auth/google/session`, and `GET /api/auth/patreon/session`.
 - The default `GET /api/auth/google` and `GET /api/auth/patreon` routes now resolve to the clean session redirect; explicit legacy token redirects remain available only through `?mode=token` for compatibility.
+- The deployed frontend login buttons currently use the explicit `?mode=token` OAuth path as a production workaround so Google and Patreon login do not depend on a third-party session cookie surviving the cross-site callback.
 - Explicit comparison reads remain available: `GET /api/db?schema=public`, `GET /api/db?schema=gallery_v2`, and `GET /api/db?compare=1`.
 
 ## Validation Status
 
 - Detailed frontend validation notes now live in `_new/frontend/documents/FRONT-END_NOTES.md`.
 - Detailed backend validation notes now live in `_new/backend/documents/BACK-END_NOTES.md`.
+- Backend auth-cookie hardening was validated locally with a focused regression test in `_new/backend/main/__tests__/authSessionUtils.test.js` and deployed to Heroku release `v483`.
+- The frontend OAuth entrypoint switch to explicit token mode was validated with targeted ESLint on the touched files and a successful production build before being pushed to `pulse-tense-website-frontend` `main`.
 - Site-wide validation should continue to verify deployed auth/session behavior, active gallery schema behavior, and admin edit flows together after each milestone.
 
 ## Current Follow-Up Items
 
-- Deploy and browser-smoke the coordinated auth/session cutover so hosted login, OAuth callbacks, admin page access, and logout all confirm clean session redirects with no token-bearing callback URLs.
-- Retire the remaining browser token-bootstrap compatibility path once the deployed session flow is stable enough that rollback support is no longer needed.
+- Browser-smoke the deployed OAuth token fallback so hosted Google login, admin page access, and logout are confirmed against the live Netlify frontend after the `?mode=token` switch.
+- If the product goal remains minimal cookie usage, move OAuth mode persistence off the `pt_oauth_mode` cookie and into a signed `state` value or explicit callback variants so the redirect-mode choice no longer depends on any browser cookie at all.
+- If clean `httpOnly` session login is still required on split frontend and API origins, treat it as a separate backend architecture task and validate it specifically against modern third-party-cookie restrictions rather than assuming correct `SameSite=None; Secure` attributes are sufficient.
+- Retire the remaining browser token-bootstrap compatibility path only after the team decides whether the long-term production auth model is same-site session, cross-site session, or token-first OAuth.
 - The site still needs a coordinated edit-system overhaul so admin can manage images, sets, and subjects with finer control across the full stack.
 - `gallery_v2.images` remains an important missing piece for end-to-end image-level editing and should be backfilled from a trusted storage inventory path.
 - Backend-specific schema, deployment, and operational follow-up lives in `_new/backend/documents/BACK-END_NOTES.md`.
