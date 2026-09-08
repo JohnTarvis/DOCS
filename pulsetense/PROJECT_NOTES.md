@@ -17,7 +17,7 @@ Last updated: 2026-09-07
 - Canonical project notes now cover full-site concerns only.
 - Frontend-only implementation, UX, validation, and planning notes now live in `_new/frontend/documents/FRONT-END_NOTES.md`.
 - Backend-only implementation, schema, and operations notes now live in `_new/backend/documents/BACK-END_NOTES.md`.
-- Auth and gallery data are mid-transition across the full site: session bootstrap exists on the backend, while the live site still needs the coordinated frontend cutover.
+- Auth and gallery data are still mid-transition across the full site, but the coordinated frontend session-first bootstrap and backend default session redirect are now implemented locally; deployed browser validation and retirement of the last token-bootstrap fallback are still pending.
 - The gallery stack is also mid-transition to `gallery_v2` through compatibility views and explicit schema endpoints.
 - The next major full-site editing milestone is a broader admin edit-system overhaul so subjects, sets, and images can be managed with much finer control.
 - The first-pass frontend-only `/edit` overhaul is now in place locally through layout, readability, set-editor usability, uploader clarity, selection or staging preparation, and direct edit-surface tests; the next stage is primarily backend and contract work so the fuller admin controls can become durable.
@@ -28,7 +28,7 @@ Last updated: 2026-09-07
 - Admin-only routes still accept bearer auth, and now also accept the auth cookie carrying the same claims.
 - New session bootstrap endpoints are available for the frontend migration: `GET /api/auth/session`, `GET /api/auth/me`, and `POST /api/auth/logout`.
 - Clean OAuth session bootstrap is available now through `GET /api/auth/google?mode=session`, `GET /api/auth/patreon?mode=session`, `GET /api/auth/google/session`, and `GET /api/auth/patreon/session`.
-- The existing `GET /api/auth/google` and `GET /api/auth/patreon` routes still default to the legacy token-in-URL redirect until the frontend switches to session bootstrap.
+- The default `GET /api/auth/google` and `GET /api/auth/patreon` routes now resolve to the clean session redirect; explicit legacy token redirects remain available only through `?mode=token` for compatibility.
 - Explicit comparison reads remain available: `GET /api/db?schema=public`, `GET /api/db?schema=gallery_v2`, and `GET /api/db?compare=1`.
 
 ## Validation Status
@@ -39,8 +39,8 @@ Last updated: 2026-09-07
 
 ## Current Follow-Up Items
 
-- The legacy `?token=...` OAuth redirect is still the default on the existing `/api/auth/google` and `/api/auth/patreon` routes for compatibility; once the frontend session bootstrap lands, flip the default to clean session redirect and retire the token-in-URL flow.
-- The live frontend session cutover still needs to be coordinated with the backend before the legacy token-in-URL redirect can be retired.
+- Deploy and browser-smoke the coordinated auth/session cutover so hosted login, OAuth callbacks, admin page access, and logout all confirm clean session redirects with no token-bearing callback URLs.
+- Retire the remaining browser token-bootstrap compatibility path once the deployed session flow is stable enough that rollback support is no longer needed.
 - The site still needs a coordinated edit-system overhaul so admin can manage images, sets, and subjects with finer control across the full stack.
 - `gallery_v2.images` remains an important missing piece for end-to-end image-level editing and should be backfilled from a trusted storage inventory path.
 - Backend-specific schema, deployment, and operational follow-up lives in `_new/backend/documents/BACK-END_NOTES.md`.
@@ -52,7 +52,7 @@ Last updated: 2026-09-07
 - Add a durable backend path for moving one or more existing images between sets without forcing a fresh upload flow; this should update canonical DB image rows, preserve ordering, and stay safe for S3-backed storage.
 - Add a durable backend path for adding existing images into an existing set and for creating a new set from selected existing images, not just from brand-new uploads.
 - Add a durable backend path for moving a set from one subject to another, including storage-path updates, compatibility-layer updates, and any cascading references that depend on the set path.
-- Decide the contract for newly typed or unknown tags in edit flows: either support create-on-save end to end through the compat path or reject unknown names explicitly so the frontend can block them cleanly instead of silently collapsing back to numeric IDs only.
+- The backend now accepts mixed existing tag IDs and newly typed tag names in DB-backed edit saves; the remaining requirement is for the frontend edit flow to preserve typed names instead of collapsing them away before submit.
 - Finish the `gallery_v2.images` backfill and keep image-level IDs authoritative so future edit routes can target canonical image rows instead of inferred filenames alone.
 - Replace or redesign `/api/delete-all` for DB or S3-backed mode; the current local-only destructive path is not sufficient for the broader admin editor and should not be treated as production-safe for cloud storage.
 - When planning the next backend routes, prefer batch-friendly request shapes so the current frontend staging area can grow into multi-image and multi-set operations without another contract rewrite.
