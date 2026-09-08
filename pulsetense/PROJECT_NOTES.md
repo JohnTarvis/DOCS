@@ -38,6 +38,8 @@ Last updated: 2026-09-07
 - Detailed backend validation notes now live in `_new/backend/documents/BACK-END_NOTES.md`.
 - Backend auth-cookie hardening was validated locally with a focused regression test in `_new/backend/main/__tests__/authSessionUtils.test.js` and deployed to Heroku release `v483`.
 - The frontend OAuth entrypoint switch to explicit token mode was validated with targeted ESLint on the touched files and a successful production build before being pushed to `pulse-tense-website-frontend` `main`.
+- Live browser validation on 2026-09-07 confirmed that Google login succeeds again on the deployed site after the token-mode OAuth switch.
+- Live browser validation on 2026-09-07 also confirmed that all 12 `FayeValentine/set1` thumbnails open the matching full-size image with no preview-to-modal filename mismatches.
 - Site-wide validation should continue to verify deployed auth/session behavior, active gallery schema behavior, and admin edit flows together after each milestone.
 
 ## Current Follow-Up Items
