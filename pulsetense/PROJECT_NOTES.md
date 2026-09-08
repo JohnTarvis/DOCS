@@ -20,6 +20,7 @@ Last updated: 2026-09-07
 - Auth and gallery data are mid-transition across the full site: session bootstrap exists on the backend, while the live site still needs the coordinated frontend cutover.
 - The gallery stack is also mid-transition to `gallery_v2` through compatibility views and explicit schema endpoints.
 - The next major full-site editing milestone is a broader admin edit-system overhaul so subjects, sets, and images can be managed with much finer control.
+- The first-pass frontend-only `/edit` overhaul is now in place locally through layout, readability, set-editor usability, uploader clarity, selection or staging preparation, and direct edit-surface tests; the next stage is primarily backend and contract work so the fuller admin controls can become durable.
 
 ## Cross-Service Contract
 
@@ -43,6 +44,18 @@ Last updated: 2026-09-07
 - The site still needs a coordinated edit-system overhaul so admin can manage images, sets, and subjects with finer control across the full stack.
 - `gallery_v2.images` remains an important missing piece for end-to-end image-level editing and should be backfilled from a trusted storage inventory path.
 - Backend-specific schema, deployment, and operational follow-up lives in `_new/backend/documents/BACK-END_NOTES.md`.
+
+## Edit-System Next Stage Handoff
+
+- The frontend-only `/edit` patch track is now complete in its first pass, including direct regression coverage for the current edit surface; the next milestone should assume the UI can already focus a subject or set, open a set editor, stage in-modal reorder or removal changes, and surface recent action feedback.
+- Keep the full set storage `path` as the canonical set identifier for edit-set, set-tag, and future set-move operations; earlier bugs confirmed that `set1` alone is not stable enough when the backend resolves real storage paths.
+- Add a durable backend path for moving one or more existing images between sets without forcing a fresh upload flow; this should update canonical DB image rows, preserve ordering, and stay safe for S3-backed storage.
+- Add a durable backend path for adding existing images into an existing set and for creating a new set from selected existing images, not just from brand-new uploads.
+- Add a durable backend path for moving a set from one subject to another, including storage-path updates, compatibility-layer updates, and any cascading references that depend on the set path.
+- Decide the contract for newly typed or unknown tags in edit flows: either support create-on-save end to end through the compat path or reject unknown names explicitly so the frontend can block them cleanly instead of silently collapsing back to numeric IDs only.
+- Finish the `gallery_v2.images` backfill and keep image-level IDs authoritative so future edit routes can target canonical image rows instead of inferred filenames alone.
+- Replace or redesign `/api/delete-all` for DB or S3-backed mode; the current local-only destructive path is not sufficient for the broader admin editor and should not be treated as production-safe for cloud storage.
+- When planning the next backend routes, prefer batch-friendly request shapes so the current frontend staging area can grow into multi-image and multi-set operations without another contract rewrite.
 
 ## Monetization Recommendation
 
