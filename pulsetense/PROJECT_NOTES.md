@@ -10,7 +10,6 @@ Last updated: 2026-10-02
 - `_new/frontend/`: Vite + React frontend
 - `_new/frontend/documents/`: active frontend-only planning notes, with older supporting notes grouped under `misc/`
 - `_new/backend/documents/sql/`: backend schema and compatibility SQL
-- `_new/backend/documents/misc/`: older backend reviews and supporting notes
 
 ## Current State
 
@@ -91,7 +90,6 @@ Last updated: 2026-10-02
 ## Detailed Source Notes
 
 - `_new/backend/documents/BACK-END_NOTES.md`
-- `_new/backend/documents/misc/backend-code-review-2026-09-05.md`
 - `_new/backend/documents/sql/gallery-v2-schema.sql`
 - `_new/backend/documents/sql/gallery-v2-compat.sql`
 - `_new/backend/documents/sql/lowercase-tag-display-names.sql`
