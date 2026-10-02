@@ -2,7 +2,7 @@
 
 # PulseTense Project Notes
 
-Last updated: 2026-09-07
+Last updated: 2026-10-02
 
 ## Project Layout
 
@@ -19,6 +19,7 @@ Last updated: 2026-09-07
 - Backend-only implementation, schema, and operations notes now live in `_new/backend/documents/BACK-END_NOTES.md`.
 - Auth and gallery data are still mid-transition across the full site. The backend cookie path has now been hardened for hosted HTTPS use, but deployed OAuth login is temporarily routed through explicit token-mode redirects because the split Netlify-to-Heroku session flow remains sensitive to browser cross-site cookie policy.
 - The gallery stack is also mid-transition to `gallery_v2` through compatibility views and explicit schema endpoints.
+- The backend tag path is now being hardened around the active edit and upload flows: existing DB tag display names were lowercased in the live database, new DB-backed tag writes are now intended to store lowercase names end to end, and the compatibility tag-relation layer now tolerates blank placeholder tag entries instead of aborting the whole save.
 - The next major full-site editing milestone is a broader admin edit-system overhaul so subjects, sets, and images can be managed with much finer control.
 - The first-pass frontend-only `/edit` overhaul is now in place locally through layout, readability, set-editor usability, uploader clarity, selection or staging preparation, and direct edit-surface tests; the next stage is primarily backend and contract work so the fuller admin controls can become durable.
 
@@ -42,6 +43,7 @@ Last updated: 2026-09-07
 - Live browser validation on 2026-09-07 confirmed that Google login succeeds again on the deployed site after the token-mode OAuth switch.
 - Live browser validation on 2026-09-07 also confirmed that all 12 `FayeValentine/set1` thumbnails open the matching full-size image with no preview-to-modal filename mismatches.
 - Local backend startup resilience was also revalidated on 2026-09-07: missing local OAuth env no longer crashes the API, `/api/health` returns `{"ready":true}` with a temporary `JWT_SECRET`, and missing DB credentials now surface an explicit configuration error instead of opaque SSL or SCRAM startup failures.
+- Live backend tag normalization maintenance on 2026-10-02 successfully applied `_new/backend/documents/sql/lowercase-tag-display-names.sql` to Heroku Postgres, lowercased the existing mixed-case tag rows, redefined the compat-layer tag functions, and verified that both `gallery_v2.tags` and `public.tags` now have 0 remaining uppercase tag names.
 - Site-wide validation should continue to verify deployed auth/session behavior, active gallery schema behavior, and admin edit flows together after each milestone.
 
 ## Current Follow-Up Items
@@ -52,6 +54,7 @@ Last updated: 2026-09-07
 - Populate `_new/backend/main/.env` from `_new/backend/main/.env.example` before expecting local DB-backed routes to work in this checkout; there is no committed local JWT or Postgres config here.
 - Retire the remaining browser token-bootstrap compatibility path only after the team decides whether the long-term production auth model is same-site session, cross-site session, or token-first OAuth.
 - The site still needs a coordinated edit-system overhaul so admin can manage images, sets, and subjects with finer control across the full stack.
+- Deploy the backend code that widens DB-backed tag input normalization across upload and edit flows, then browser-smoke new-set creation where the subject name autofills as the first tag; if tags still fail to submit after deploy, inspect the frontend payload serialization path next.
 - `gallery_v2.images` remains an important missing piece for end-to-end image-level editing and should be backfilled from a trusted storage inventory path.
 - Backend-specific schema, deployment, and operational follow-up lives in `_new/backend/documents/BACK-END_NOTES.md`.
 
@@ -91,6 +94,7 @@ Last updated: 2026-09-07
 - `_new/backend/documents/misc/backend-code-review-2026-09-05.md`
 - `_new/backend/documents/sql/gallery-v2-schema.sql`
 - `_new/backend/documents/sql/gallery-v2-compat.sql`
+- `_new/backend/documents/sql/lowercase-tag-display-names.sql`
 - `_new/frontend/documents/FRONT-END_NOTES.md`
 
 ## Recommendation For Note Format
