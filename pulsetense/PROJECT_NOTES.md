@@ -2,7 +2,7 @@
 
 # PulseTense Project Notes
 
-Last updated: 2026-10-02
+Last updated: 2026-10-16
 
 ## Project Layout
 
@@ -17,10 +17,11 @@ Last updated: 2026-10-02
 - Frontend-only implementation, UX, validation, and planning notes now live in `_new/frontend/documents/FRONT-END_NOTES.md`.
 - Backend-only implementation, schema, and operations notes now live in `_new/backend/documents/BACK-END_NOTES.md`.
 - Auth and gallery data are still mid-transition across the full site. The backend cookie path has now been hardened for hosted HTTPS use, but deployed OAuth login is temporarily routed through explicit token-mode redirects because the split Netlify-to-Heroku session flow remains sensitive to browser cross-site cookie policy.
-- The gallery stack is also mid-transition to `gallery_v2` through compatibility views and explicit schema endpoints.
+- The gallery stack is also mid-transition to `gallery_v2` through compatibility views and explicit schema endpoints, but the live `gallery_v2.images` catalog is now populated from the trusted S3-backed storage inventory instead of remaining empty.
+- `GET /api/images-db` has now been retired from the backend surface, and `POST /api/delete-image-db` now uses `gallery_v2.images` as its source of truth for image-level deletes.
 - The backend tag path is now being hardened around the active edit and upload flows: existing DB tag display names were lowercased in the live database, new DB-backed tag writes are now intended to store lowercase names end to end, and the compatibility tag-relation layer now tolerates blank placeholder tag entries instead of aborting the whole save. Hosted smoke on 2026-10-02 found one remaining upload-db defect where brand-new uploads created lowercase tag rows but did not persist `subject_tags` or `set_tags` relations for the new subject or set. Backend investigation traced that defect to the upload helper writing relation rows by `tag_id` instead of the compat relation `tag` path, and the deployed backend now passes a hosted browser smoke for that fix: a brand-new upload created the subject, set, lowercase tags, and non-empty relation rows, then cleaned up successfully.
 - The next major full-site editing milestone is a broader admin edit-system overhaul so subjects, sets, and images can be managed with much finer control.
-- The first-pass frontend-only `/edit` overhaul is now in place locally through layout, readability, set-editor usability, uploader clarity, selection or staging preparation, and direct edit-surface tests; the next stage is primarily backend and contract work so the fuller admin controls can become durable.
+- The first-pass frontend-only `/edit` overhaul is now in place locally through layout, readability, set-editor usability, uploader clarity, selection or staging preparation, and direct edit-surface tests; the next stage remains primarily backend and contract work so the fuller admin controls can become durable, with the image catalog and image-delete migration now in place as prerequisites rather than blockers.
 
 ## Cross-Service Contract
 
@@ -47,18 +48,24 @@ Last updated: 2026-10-02
 - Live upload smoke on 2026-10-02 used the hosted `/edit` uploader to create and then delete a throwaway subject with mixed-case subject and set tags. The upload created the subject, set, and lowercase tag rows, but `GET /api/db?schema=gallery_v2` still returned empty `subject_tags` and `set_tags` relations for that new upload, isolating the remaining new-upload tag bug to the backend upload-to-relation path rather than frontend tag serialization.
 - Focused backend follow-up on 2026-10-02 updated the upload relation helper to write normalized tag names through the compat `subject_tags` and `set_tags` `tag` column, and `node --test __tests__/uploadDB_utils.node.test.js` passed 2 out of 2 targeted checks for the new-upload relation path. A deeper local DB smoke still could not run in this checkout because local DB env is not configured here.
 - Hosted post-deploy upload smoke on 2026-10-02 then confirmed the fix end to end: a fresh throwaway upload through the live `/edit` page showed the expected subject and set tags in the management card, and a direct hosted `GET /api/db?schema=gallery_v2` check returned non-empty `subject_tags` and `set_tags` relation rows for that upload before the throwaway subject was deleted cleanly.
+- Focused backend Node smoke on 2026-10-16 validated the new `gallery_v2` image backfill mapper, including nested `wm/` derivatives, root-level `wm_` derivatives, and the missing-bucket CLI failure path.
+- A live dry run of `npm run backfill:gallery-images` on 2026-10-16, using Heroku-provided DB and S3 config, reported 35 current sets, 625 catalog image rows, and 0 unmatched S3 keys under `main/uploads/`.
+- The live `npm run backfill:gallery-images -- --apply` run on 2026-10-16 then populated `gallery_v2.images` with 625 rows, and a direct verification query confirmed ordered catalog rows with `id`, `set_id`, `filename`, `original_key`, and `sort_order`.
+- Focused backend Node smoke on 2026-10-16 also validated the migrated `POST /api/delete-image-db` path: it deletes cataloged storage keys, removes the image row from `gallery_v2.images`, refreshes the parent set `image_count`, and invalidates cached thumbnails by set prefix.
+- Mounted route inspection on 2026-10-16 confirmed `GET /api/images-db` is no longer exposed by the backend.
 - Site-wide validation should continue to verify deployed auth/session behavior, active gallery schema behavior, and admin edit flows together after each milestone.
 
 ## Current Follow-Up Items
 
-- If the hosted Patreon flow needs repeated Google-provider validation, use a normal browser rather than the VS Code integrated browser because Patreon’s embedded Google popup can be blocked there even when the token-mode return path itself works.
-- If the product goal remains minimal cookie usage, move OAuth mode persistence off the `pt_oauth_mode` cookie and into a signed `state` value or explicit callback variants so the redirect-mode choice no longer depends on any browser cookie at all.
-- If clean `httpOnly` session login is still required on split frontend and API origins, treat it as a separate backend architecture task and validate it specifically against modern third-party-cookie restrictions rather than assuming correct `SameSite=None; Secure` attributes are sufficient.
-- Populate `_new/backend/main/.env` from `_new/backend/main/.env.example` before expecting local DB-backed routes to work in this checkout; there is no committed local JWT or Postgres config here.
-- Retire the remaining browser token-bootstrap compatibility path only after the team decides whether the long-term production auth model is same-site session, cross-site session, or token-first OAuth.
-- The site still needs a coordinated edit-system overhaul so admin can manage images, sets, and subjects with finer control across the full stack.
-- Keep one light browser-smoke on future backend upload changes: the deployed `/api/upload-db` relation-write fix now passes hosted new-set creation where the subject name autofills as the first tag, and `GET /api/db?schema=gallery_v2` returned non-empty `subject_tags` and `set_tags` relations for the upload.
-- `gallery_v2.images` remains an important missing piece for end-to-end image-level editing and should be backfilled from a trusted storage inventory path.
+- Highest priority: finish the remaining catalog-backed admin edit routes so existing images can move between sets, existing images can seed new or existing sets, and sets can move between subjects without falling back to filename inference.
+- Next: run one hosted browser smoke for the newly migrated `gallery_v2.images` delete path by deleting a throwaway image, confirming the set count drops by 1, and confirming the matching row disappears from `GET /api/db?schema=gallery_v2`.
+- Replace or redesign `POST /api/delete-all` as a storage-aware and DB-aware admin operation before any production destructive bulk-delete flow is reintroduced.
+- Decide the long-term production auth model, then retire the remaining browser token-bootstrap compatibility path at the right time.
+- If the product goal remains minimal cookie usage, move OAuth mode persistence off the `pt_oauth_mode` cookie and into a signed `state` value or explicit callback variants; if cookie auth becomes primary for admin writes, add CSRF protection and recheck credentialed CORS.
+- Add a derivative-asset strategy for `gallery_v2.images`: decide when to populate `thumbnail_key`, `modal_key`, and `watermarked_key`, and use that work to reduce modal first-paint cost.
+- Decide whether `public` becomes a frozen reference snapshot or receives an explicit one-way sync from `gallery_v2`, and add a deliberate drift check so the two schemas do not silently diverge.
+- Keep one light browser smoke on future backend upload, delete-image-db, edit-set, and tag-edit changes; use a normal browser rather than the VS Code integrated browser when Patreon’s embedded Google popup needs repeated validation.
+- Populate `_new/backend/main/.env` from `_new/backend/main/.env.example` before expecting local DB-backed routes or the image-backfill CLI to work in a fresh checkout; there is no committed local JWT, Postgres, or S3 config here.
 - Backend-specific schema, deployment, and operational follow-up lives in `_new/backend/documents/BACK-END_NOTES.md`.
 
 ## Edit-System Next Stage Handoff
@@ -70,7 +77,7 @@ Last updated: 2026-10-02
 - Add a durable backend path for moving a set from one subject to another, including storage-path updates, compatibility-layer updates, and any cascading references that depend on the set path.
 - The backend and frontend now both preserve mixed existing tag IDs and newly typed tag names in DB-backed edit saves; browser-smoke one deployed tag edit after release to confirm the hosted frontend matches the local regression coverage.
 - The hosted frontend already lowercases `subjectTags` and `setTags` before multipart upload and has direct test coverage for that request shape. The deployed backend upload-db relation-write fix has now passed a hosted browser smoke, so reopen frontend serialization questions only if a future upload regression reproduces empty upload-tag relations.
-- Finish the `gallery_v2.images` backfill and keep image-level IDs authoritative so future edit routes can target canonical image rows instead of inferred filenames alone.
+- Keep `gallery_v2.images` authoritative now that the live backfill is in place and `POST /api/delete-image-db` runs on it; future image-level edit routes should target catalog IDs rather than inferred filenames alone.
 - Replace or redesign `/api/delete-all` for DB or S3-backed mode; the current local-only destructive path is not sufficient for the broader admin editor and should not be treated as production-safe for cloud storage.
 - When planning the next backend routes, prefer batch-friendly request shapes so the current frontend staging area can grow into multi-image and multi-set operations without another contract rewrite.
 
