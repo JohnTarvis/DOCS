@@ -2,7 +2,7 @@
 
 # PulseTense Project Notes
 
-Last updated: 2026-10-16
+Last updated: 2026-10-21
 
 ## Project Layout
 
@@ -53,12 +53,16 @@ Last updated: 2026-10-16
 - The live `npm run backfill:gallery-images -- --apply` run on 2026-10-16 then populated `gallery_v2.images` with 625 rows, and a direct verification query confirmed ordered catalog rows with `id`, `set_id`, `filename`, `original_key`, and `sort_order`.
 - Focused backend Node smoke on 2026-10-16 also validated the migrated `POST /api/delete-image-db` path: it deletes cataloged storage keys, removes the image row from `gallery_v2.images`, refreshes the parent set `image_count`, and invalidates cached thumbnails by set prefix.
 - Mounted route inspection on 2026-10-16 confirmed `GET /api/images-db` is no longer exposed by the backend.
+- Backend releases `v502` and `v503` on 2026-10-21 made the live `/edit` flows keep `gallery_v2.images` authoritative with no frontend contract change. Before them, editor deletes and reorders through `POST /api/edit-set-db`, plus new uploads through `POST /api/upload-db`, changed S3 and `image_count` without updating catalog rows. Because the frontend renders catalog rows first, an editor delete could have shown a broken image. Both routes now rebuild the affected set's catalog rows from S3, and `delete-set-db` now clears that set's cached thumbnails.
+- A hosted browser smoke on 2026-10-21 passed upload, editor removal, reorder, and set deletion end to end on a disposable `zzsmoketest` subject. Details are in `_new/backend/documents/BACK-END_NOTES.md`. Production finished with 625 catalog images across 35 sets and 0 count/catalog mismatches.
 - Site-wide validation should continue to verify deployed auth/session behavior, active gallery schema behavior, and admin edit flows together after each milestone.
 
 ## Current Follow-Up Items
 
-- Highest priority: finish the remaining catalog-backed admin edit routes so existing images can move between sets, existing images can seed new or existing sets, and sets can move between subjects without falling back to filename inference.
-- Next: run one hosted browser smoke for the newly migrated `gallery_v2.images` delete path by deleting a throwaway image, confirming the set count drops by 1, and confirming the matching row disappears from `GET /api/db?schema=gallery_v2`.
+- Deferred until the end, and optional pending a product decision: catalog-backed admin edit routes for moving images between sets, seeding sets from existing images, and moving sets between subjects. Catalog row IDs are regenerated whenever a set is edited, so any future ID-based feature must account for that.
+- Decide whether `POST /api/delete-image-db` should be wired into the frontend for single-image deletes or retired. It works, but no UI calls it; the set editor's delete path through `edit-set-db` is now catalog-safe.
+- Optional frontend handoff: in `EditSetModal`, keep the saving state until the parent `onClose` refresh finishes. Today Save is re-enabled with stale filenames during the gallery refetch. The backend rejects a second click with a 400 order mismatch, so this is UX only.
+- Optional frontend handoff: selecting an upload folder overwrites the Subject field with the folder name. Typing a subject also appends it to Subject Tags, which can duplicate a tag already entered.
 - Replace or redesign `POST /api/delete-all` as a storage-aware and DB-aware admin operation before any production destructive bulk-delete flow is reintroduced.
 - Decide the long-term production auth model, then retire the remaining browser token-bootstrap compatibility path at the right time.
 - If the product goal remains minimal cookie usage, move OAuth mode persistence off the `pt_oauth_mode` cookie and into a signed `state` value or explicit callback variants; if cookie auth becomes primary for admin writes, add CSRF protection and recheck credentialed CORS.
