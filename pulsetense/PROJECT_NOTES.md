@@ -79,6 +79,29 @@ Last updated: 2026-11-18
 - Populate `_new/backend/main/.env` from `_new/backend/main/.env.example` before expecting local DB-backed routes or the image-backfill CLI to work in a fresh checkout; there is no committed local JWT, Postgres, or S3 config here.
 - Backend-specific schema, deployment, and operational follow-up lives in `_new/backend/documents/BACK-END_NOTES.md`.
 
+## Moving Forward
+
+### Current risk posture
+
+- The latest recorded production checks cover the core gallery, OAuth fallback, uploads, tag edits, set reordering/removal, and catalog synchronization. The notes do not identify a currently known production outage or data-integrity failure in those validated paths.
+- This is not a guarantee that the site has no critical bugs or security vulnerabilities; the recorded checks are focused validation, not a complete security audit.
+- The clearest remaining security-hardening issue is the deployed OAuth `?mode=token` compatibility flow. Treat it as temporary because tokens in URLs can leak through browser history, logs, or referrer handling. Complete and verify the cookie-session flow before removing the fallback.
+- Keep `POST /api/delete-all` unavailable until its storage/database scope, authorization, confirmation, audit trail, and recovery behavior are designed and tested.
+
+### Recommended order
+
+1. **Close the auth/CSRF handoff (frontend + backend).** Confirm the production session-cookie flow across Netlify and Heroku, send the `pt_csrf` value as `X-CSRF-Token` on every cookie-authenticated mutation and logout, verify credentialed CORS, then retire token-in-URL login once the cookie path passes hosted OAuth checks.
+2. **Choose the required admin-editor scope (product + frontend + backend).** The existing upload, tag, set reorder/removal, and set-delete flows are working. If moving existing images, creating sets from existing images, or moving sets between subjects are required for completion, define their batch contracts first; the backend owns durable storage/catalog mutations and the frontend owns selection, staging, confirmation, and feedback. Decide separately whether to expose the catalog-ID single-image delete route.
+3. **Agree on the image-derivative contract (frontend + backend).** Decide how thumbnail, modal-sized, and watermarked assets are generated, cataloged, and served. Implement the backend pipeline and cache behavior, then update the frontend URL selection and fallbacks. Keep this as a performance milestone unless measurements make it a release requirement.
+4. **Finish the frontend readiness pass.** Prioritize mobile and keyboard accessibility for the public gallery and `/edit`, a mobile-safe tag-exclusion control, bounded health retries, and a cookie/privacy disclosure. Keep optional UX cleanup and broader SEO work scoped separately.
+5. **Use a cross-service release gate.** Before declaring a milestone complete, run both repositories' tests/builds and a hosted smoke of public gallery load, OAuth login/logout, cookie-authenticated mutations, upload, tag edit, set edit/delete, and image loading. Recheck database/catalog consistency and confirm disabled destructive routes remain disabled.
+
+### Definition of completion
+
+- The current public gallery and existing admin workflows can be considered a stable core release after auth/CSRF closure and the cross-service release gate pass.
+- The broader admin editor is a separate completion target if image/set/subject reassignment is required; it depends on new backend contracts and corresponding frontend workflows.
+- Mobile polish, derivative-image optimization, persistent cache improvements, monetization, and other optional roadmap items should not block the core release unless explicitly promoted to product requirements.
+
 ## Edit-System Next Stage Handoff
 
 - The frontend-only `/edit` patch track is now complete in its first pass, including direct regression coverage for the current edit surface; the next milestone should assume the UI can already focus a subject or set, open a set editor, stage in-modal reorder or removal changes, and surface recent action feedback.
