@@ -2,7 +2,7 @@
 
 # PulseTense Project Notes
 
-Last updated: 2026-10-21
+Last updated: 2026-11-18
 
 ## Project Layout
 
@@ -18,6 +18,8 @@ Last updated: 2026-10-21
 - Backend-only implementation, schema, and operations notes now live in `_new/backend/documents/BACK-END_NOTES.md`.
 - Auth and gallery data are still mid-transition across the full site. The backend cookie path has now been hardened for hosted HTTPS use, but deployed OAuth login is temporarily routed through explicit token-mode redirects because the split Netlify-to-Heroku session flow remains sensitive to browser cross-site cookie policy.
 - The gallery stack is also mid-transition to `gallery_v2` through compatibility views and explicit schema endpoints, but the live `gallery_v2.images` catalog is now populated from the trusted S3-backed storage inventory instead of remaining empty.
+- On 2026-11-18, the backend hardened the `edit-set-db` and DB-backed delete flows: edit payloads are validated against the current S3 inventory before mutations, the full catalog replacement uses a dedicated Postgres transaction client, and set/image deletes coordinate storage removal with metadata updates.
+- Cookie-authenticated admin mutations now require a double-submit CSRF token: read the readable `pt_csrf` cookie and send the same value as `X-CSRF-Token`. Bearer-authenticated mutations remain supported and do not require this header.
 - `GET /api/images-db` has now been retired from the backend surface, and `POST /api/delete-image-db` now uses `gallery_v2.images` as its source of truth for image-level deletes.
 - The backend tag path is now being hardened around the active edit and upload flows: existing DB tag display names were lowercased in the live database, new DB-backed tag writes are now intended to store lowercase names end to end, and the compatibility tag-relation layer now tolerates blank placeholder tag entries instead of aborting the whole save. Hosted smoke on 2026-10-02 found one remaining upload-db defect where brand-new uploads created lowercase tag rows but did not persist `subject_tags` or `set_tags` relations for the new subject or set. Backend investigation traced that defect to the upload helper writing relation rows by `tag_id` instead of the compat relation `tag` path, and the deployed backend now passes a hosted browser smoke for that fix: a brand-new upload created the subject, set, lowercase tags, and non-empty relation rows, then cleaned up successfully.
 - The next major full-site editing milestone is a broader admin edit-system overhaul so subjects, sets, and images can be managed with much finer control.
@@ -56,11 +58,16 @@ Last updated: 2026-10-21
 - Backend releases `v502` and `v503` on 2026-10-21 made the live `/edit` flows keep `gallery_v2.images` authoritative with no frontend contract change. Before them, editor deletes and reorders through `POST /api/edit-set-db`, plus new uploads through `POST /api/upload-db`, changed S3 and `image_count` without updating catalog rows. Because the frontend renders catalog rows first, an editor delete could have shown a broken image. Both routes now rebuild the affected set's catalog rows from S3, and `delete-set-db` now clears that set's cached thumbnails.
 - A hosted browser smoke on 2026-10-21 passed upload, editor removal, reorder, and set deletion end to end on a disposable `zzsmoketest` subject. Details are in `_new/backend/documents/BACK-END_NOTES.md`. Production finished with 625 catalog images across 35 sets and 0 count/catalog mismatches.
 - Site-wide validation should continue to verify deployed auth/session behavior, active gallery schema behavior, and admin edit flows together after each milestone.
+- Final backend validation on 2026-11-18 passed Jest 9 suites / 14 tests and the Node-native suite 17/17.
 
 ## Current Follow-Up Items
 
 - Deferred until the end, and optional pending a product decision: catalog-backed admin edit routes for moving images between sets, seeding sets from existing images, and moving sets between subjects. Catalog row IDs are regenerated whenever a set is edited, so any future ID-based feature must account for that.
 - Decide whether `POST /api/delete-image-db` should be wired into the frontend for single-image deletes or retired. It works, but no UI calls it; the set editor's delete path through `edit-set-db` is now catalog-safe.
+- Frontend handoff: cookie-authenticated login, session bootstrap, upload, edit-set, delete-set, delete-image, and logout flows must read `pt_csrf` and send `X-CSRF-Token` on mutation/logout requests. The frontend must not use the cookie value to mutate server state without the header.
+- Frontend handoff: decide whether `/edit` should expose `POST /api/delete-image-db` for catalog-ID single-image deletion or continue using `POST /api/edit-set-db` only. The backend route is working but the confirmation dialog, refresh behavior, and user-facing fallback need a frontend product decision.
+- Frontend handoff: do not expose `POST /api/delete-all` yet. It remains disabled pending a storage scope, confirmation UX, audit logging, and compensation/rollback design.
+- Frontend handoff: derivative keys are currently null in `gallery_v2.images`; a modal/thumbnail asset contract must be chosen before consuming `thumbnail_key`, `modal_key`, or `watermarked_key`.
 - Optional frontend handoff: in `EditSetModal`, keep the saving state until the parent `onClose` refresh finishes. Today Save is re-enabled with stale filenames during the gallery refetch. The backend rejects a second click with a 400 order mismatch, so this is UX only.
 - Optional frontend handoff: selecting an upload folder overwrites the Subject field with the folder name. Typing a subject also appends it to Subject Tags, which can duplicate a tag already entered.
 - Replace or redesign `POST /api/delete-all` as a storage-aware and DB-aware admin operation before any production destructive bulk-delete flow is reintroduced.
